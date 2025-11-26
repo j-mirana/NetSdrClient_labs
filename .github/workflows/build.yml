@@ -38,18 +38,20 @@ jobs:
           Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
         shell: pwsh
         
-      # 2. Установка та виконання .NET Sonar Scanner
+      # 2. Установка .NET Sonar Scanner (використовуємо глобальну установку)
       - name: Install Sonar Scanner
         run: dotnet tool install --global dotnet-sonarscanner
         shell: pwsh
       
-      # 3. SONARSCANNER BEGIN & BUILD (ВИПРАВЛЕНО!)
-      - name: SonarScanner Begin & Build
+      # 3. ФІНАЛЬНА ЗБІРКА ТА АНАЛІЗ (ОБ'ЄДНАНО В ОДИН RUN-БЛОК ДЛЯ СТАБІЛЬНОСТІ)
+      # Цей крок замінює всі попередні кроки 3, 4, 5
+      - name: SonarScanner Analysis, Build, Test, and End
         shell: pwsh
         run: |
+          # Встановлюємо шлях до сканера
           $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
           
-          # BEGIN STEP
+          # 3.1 BEGIN STEP
           & $scannerPath begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
@@ -57,20 +59,14 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" `
             /d:sonar.login="$env:SONAR_TOKEN" 
           
-          # BUILD STEP (Залишаємо тільки Build, Test буде окремо)
-          dotnet build NetSdrClient.sln
+          # 3.2 BUILD STEP (Використовуємо Release для Coverlet)
+          dotnet build NetSdrClient.sln -c Release
           
-      # 4. ТЕСТУВАННЯ ТА ПОКРИТТЯ (КРИТИЧНЕ ВИПРАВЛЕННЯ: ПРИБРАНО --no-build)
-      - name: Tests with coverage (OpenCover)
-        shell: pwsh
-        run: dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
-          /p:CollectCoverage=true `
-          /p:CoverletOutput=TestResults/coverage.xml `
-          /p:CoverletOutputFormat=opencover
+          # 3.3 TEST & COVERAGE STEP (Вже без --no-build, як було виправлено)
+          dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
+            /p:CollectCoverage=true `
+            /p:CoverletOutput=TestResults/coverage.xml `
+            /p:CoverletOutputFormat=opencover
           
-      # 5. SONARSCANNER END
-      - name: SonarScanner End
-        shell: pwsh
-        run: |
-          $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
+          # 3.4 END STEP
           & $scannerPath end /d:sonar.login="$env:SONAR_TOKEN"
