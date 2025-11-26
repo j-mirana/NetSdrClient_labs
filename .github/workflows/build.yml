@@ -27,10 +27,17 @@ jobs:
       - name: Install SonarScanner for .NET
         run: dotnet tool install --global dotnet-sonarscanner
 
-      - name: Build and analyze with SonarCloud
+      - name: Initialize SonarCloud analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          dotnet sonarscanner begin /k:"j-mirana_NetSdrClient_labs" /o:"j-mirana" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.token=$env:SONAR_TOKEN
-          dotnet build NetSdrClient.sln --no-incremental
-          dotnet sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
+          dotnet sonarscanner begin /k:"j-mirana_NetSdrClient_labs" /o:"j-mirana" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.token="$env:SONAR_TOKEN"
+
+      - name: Build solution
+        run: dotnet build NetSdrClient.sln --no-incremental
+
+      - name: Complete SonarCloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
