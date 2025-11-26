@@ -67,6 +67,7 @@ jobs:
           /p:CollectCoverage=true `
           /p:CoverletOutput=TestResults/coverage.xml `
           /p:CoverletOutputFormat=opencover
+
           
       # 5. SONARSCANNER END
       - name: SonarScanner End
