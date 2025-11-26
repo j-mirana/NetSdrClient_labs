@@ -1,66 +1,39 @@
-name: SonarQube
+name: SonarCloud Analysis
+
 on:
-  # 1. Тригер на push у гілку 'lab1'
   push:
     branches:
       - lab1
-  
-  # 2. Тригер на pull_request, що таргетує гілку 'lab1'
   pull_request:
     branches:
       - lab1
+
 jobs:
   build:
     name: Build and analyze
     runs-on: windows-latest
     
-    # Визначаємо токен для використання в Powershell
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      
-    permissions:
-      pull-requests: write 
-      contents: read
-    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-      
-      # ВИПРАВЛЕННЯ 1: Видалення конфліктуючого файлу конфігурації
-      - name: Clean up sonar-project.properties
+          dotnet-version: 8.0.x
+
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Initialize SonarCloud analysis
         run: |
-          Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
-        shell: pwsh
-      
-      # 2. Установка та виконання .NET Sonar Scanner (Оптимізовано)
-      - name: Install Sonar Scanner
+          dotnet sonarscanner begin /k:"j-mirana_NetSdrClient_labs" /o:"j-mirana" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+      - name: Build solution
+        run: dotnet build NetSdrClient.sln --no-incremental
+
+      - name: Complete SonarCloud analysis
         run: |
-          if (-not (Get-Command dotnet-sonarscanner -ErrorAction SilentlyContinue)) {
-            dotnet tool install --global dotnet-sonarscanner
-          }
-        shell: pwsh
-      
-      - name: Build and Analyze
-        shell: pwsh
-        run: |
-          # Встановлення шляху
-          $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
-          
-          # BEGIN STEP
-          & $scannerPath begin `
-            /k:"j-mirana_NetSdrClient_labs" `
-            /o:"j-mirana" `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.login="$env:SONAR_TOKEN" 
-          
-          # BUILD STEP
-          dotnet build NetSdrClient.sln
-          
-          # END STEP
-          & $scannerPath end /d:sonar.login="$env:SONAR_TOKEN"
+          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
