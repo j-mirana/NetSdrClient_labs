@@ -46,9 +46,7 @@ namespace NetSdrClientApp.Networking
             }
             catch (OperationCanceledException ex)
             {
-                // Виправлення: Порожній блок catch (Code Smell)
-                // Це очікуване виключення, яке виникає, коли слухач зупиняється 
-                // через виклик StopListening, оскільки _cts.Cancel() перериває ReceiveAsync.
+                // Do something...
             }
             catch (Exception ex)
             {
