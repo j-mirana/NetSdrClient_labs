@@ -51,6 +51,7 @@ public class NetSdrClientTests
     public async Task DisconnectWithNoConnectionTest()
     {
         //act
+        // Припускаємо, що метод Disconect() перейменовано на Disconnect()
         _client.Disconnect();
 
         //assert
@@ -65,12 +66,31 @@ public class NetSdrClientTests
         await ConnectAsyncTest();
 
         //act
+        // Припускаємо, що метод Disconect() перейменовано на Disconnect()
         _client.Disconnect();
 
         //assert
         //No exception thrown
         _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
     }
+
+    // Новий тест для Лаби 3: Покриття ChangeFrequencyAsync
+    [Test]
+    public async Task ChangeFrequencyAsyncTest()
+    {
+        // Arrange
+        await ConnectAsyncTest(); // Переконатися, що підключено
+        long frequency = 20000000;
+        int channel = 1;
+
+        // Act
+        await _client.ChangeFrequencyAsync(frequency, channel);
+
+        // Assert
+        // Перевіряємо, що запит надіслано один раз
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Once);
+    }
+
 
     [Test]
     public async Task StartIQNoConnectionTest()
@@ -111,7 +131,7 @@ public class NetSdrClientTests
 
         //assert
         //No exception thrown
-        _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
+        _updMock.Verify(udp => udp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
 

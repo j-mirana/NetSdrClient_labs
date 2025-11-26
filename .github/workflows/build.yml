@@ -1,39 +1,75 @@
-name: SonarCloud Analysis
-
+name: SonarQube
 on:
+  # 1. Тригер на push у гілку 'lab1'
   push:
     branches:
       - lab1
+  
+  # 2. Тригер на pull_request, що таргетує гілку 'lab1'
   pull_request:
     branches:
       - lab1
-
 jobs:
   build:
     name: Build and analyze
     runs-on: windows-latest
     
+    # Визначаємо токен для використання в Powershell
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
+    permissions:
+      pull-requests: write 
+      contents: read
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
-
-      - name: Install SonarScanner for .NET
-        run: dotnet tool install --global dotnet-sonarscanner
-
-      - name: Debug - Check if token is available
+          dotnet-version: '8.0.x'
+      
+      # ВИПРАВЛЕННЯ 1: Видалення конфліктуючого файлу конфігурації
+      - name: Clean up sonar-project.properties
         run: |
-          echo "Token length: ${{ secrets.SONAR_TOKEN && secrets.SONAR_TOKEN.length || 'NOT_SET' }}"
+          Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
         shell: pwsh
-
-      - name: Build and analyze with SonarCloud
+      
+      # 2. Установка та виконання .NET Sonar Scanner (Оптимізовано)
+      - name: Install Sonar Scanner
         run: |
-          dotnet sonarscanner begin /k:"j-mirana_NetSdrClient_labs" /o:"j-mirana" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-          dotnet build NetSdrClient.sln --no-incremental
-          dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          if (-not (Get-Command dotnet-sonarscanner -ErrorAction SilentlyContinue)) {
+            dotnet tool install --global dotnet-sonarscanner
+          }
+        shell: pwsh
+      
+      - name: Build and Analyze
+        shell: pwsh
+        run: |
+          # Встановлення шляху
+          $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
+          
+          # BEGIN STEP: Додано шлях до звіту про покриття!
+          & $scannerPath begin `
+            /k:"j-mirana_NetSdrClient_labs" `
+            /o:"j-mirana" `
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" ` # <-- ДОДАНО ШЛЯХ
+            /d:sonar.login="$env:SONAR_TOKEN" 
+          
+          # BUILD STEP
+          dotnet build NetSdrClient.sln
+          
+          # ТЕСТУВАННЯ ТА ПОКРИТТЯ (Лаба 3)
+          - name: Tests with coverage (OpenCover)
+            run: dotnet test NetSdrClientAppTests\NetSdrClientAppTests.csproj -c Release --no-build `
+              /p:CollectCoverage=true `
+              /p:CoverletOutput=TestResults/coverage.xml `
+              /p:CoverletOutputFormat=opencover
+            shell: pwsh
+          
+          # END STEP
+          & $scannerPath end /d:sonar.login="$env:SONAR_TOKEN"
