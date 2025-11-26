@@ -14,6 +14,7 @@ namespace NetSdrClientApp.Networking
         Task SendMessageAsync(byte[] data);
 
         event EventHandler<byte[]> MessageReceived;
+        // Виправлення: Видалено зайвий модифікатор public
         bool Connected { get; }
     }
 }

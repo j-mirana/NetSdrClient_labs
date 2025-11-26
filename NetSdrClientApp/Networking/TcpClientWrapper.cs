@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -10,22 +10,20 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Networking
 {
-    // Виправлення: Клас тепер приймає ILogger для виведення повідомлень
     public class TcpClientWrapper : ITcpClient
     {
-        private readonly ILogger _logger; // Використання ILogger
+        private readonly ILogger _logger; // Додано ILogger
         private string _host;
         private int _port;
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts = null; // Фікс CS8618
 
-        // Виправлення: У ITcpClient.cs потрібно видалити зайвий "public"
         public bool Connected => _tcpClient != null && _tcpClient.Connected && _stream != null;
 
         public event EventHandler<byte[]>? MessageReceived;
 
-        // Виправлення: ILogger додано до конструктора
+        // ILogger додано до конструктора
         public TcpClientWrapper(string host, int port, ILogger logger)
         {
             _host = host;
@@ -111,7 +109,7 @@ namespace NetSdrClientApp.Networking
                 {
                     _logger.Log($"Starting listening for incomming messages."); // Виправлено Console.WriteLine
 
-                    while (!_cts.Token.IsCancellationRequested)
+                    while (!_cts!.Token.IsCancellationRequested) // ! використовується, оскільки _cts ініціалізується в Connect()
                     {
                         byte[] buffer = new byte[8194];
 
@@ -122,7 +120,7 @@ namespace NetSdrClientApp.Networking
                         }
                     }
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException) // Виправлення: CS0168 - видалено невикористану змінну ex
                 {
                     // Виправлення: Порожній блок catch
                     // Це виключення є очікуваним і виникає, коли _cts.Cancel() викликається 
