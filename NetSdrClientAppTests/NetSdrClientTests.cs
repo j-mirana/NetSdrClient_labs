@@ -51,11 +51,9 @@ public class NetSdrClientTests
     public async Task DisconnectWithNoConnectionTest()
     {
         //act
-        // Припускаємо, що метод Disconect() перейменовано на Disconnect()
         _client.Disconnect();
 
         //assert
-        //No exception thrown
         _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
     }
 
@@ -66,11 +64,9 @@ public class NetSdrClientTests
         await ConnectAsyncTest();
 
         //act
-        // Припускаємо, що метод Disconect() перейменовано на Disconnect()
         _client.Disconnect();
 
         //assert
-        //No exception thrown
         _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
     }
 
@@ -79,15 +75,19 @@ public class NetSdrClientTests
     public async Task ChangeFrequencyAsyncTest()
     {
         // Arrange
-        await ConnectAsyncTest(); // Переконатися, що підключено
+        await ConnectAsyncTest(); // 3 виклики SendMessageAsync тут
+
+        // КРИТИЧНЕ ВИПРАВЛЕННЯ: Скидаємо лічильник викликів, щоб рахувати тільки SendMessageAsync від ChangeFrequencyAsync
+        _tcpMock.Invocations.Clear();
+
         long frequency = 20000000;
         int channel = 1;
 
         // Act
-        await _client.ChangeFrequencyAsync(frequency, channel);
+        await _client.ChangeFrequencyAsync(frequency, channel); // 1 виклик SendMessageAsync тут
 
         // Assert
-        // Перевіряємо, що запит надіслано один раз
+        // Очікуємо 1 виклик після скидання
         _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Once);
     }
 
@@ -100,7 +100,6 @@ public class NetSdrClientTests
         await _client.StartIQAsync();
 
         //assert
-        //No exception thrown
         _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
         _tcpMock.VerifyGet(tcp => tcp.Connected, Times.AtLeastOnce);
     }
@@ -115,7 +114,6 @@ public class NetSdrClientTests
         await _client.StartIQAsync();
 
         //assert
-        //No exception thrown
         _updMock.Verify(udp => udp.StartListeningAsync(), Times.Once);
         Assert.That(_client.IQStarted, Is.True);
     }
@@ -130,7 +128,6 @@ public class NetSdrClientTests
         await _client.StopIQAsync();
 
         //assert
-        //No exception thrown
         _updMock.Verify(udp => udp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
