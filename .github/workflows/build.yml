@@ -12,14 +12,7 @@ jobs:
   build:
     name: Build and analyze
     runs-on: windows-latest
-
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-    permissions:
-      pull-requests: write
-      contents: read
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,35 +24,13 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Remove sonar-project.properties if exists
-        shell: pwsh
-        run: |
-          if (Test-Path "./sonar-project.properties") {
-            Remove-Item "./sonar-project.properties" -Force
-          }
-
       - name: Install SonarScanner for .NET
-        shell: pwsh
-        run: |
-          if (-not (Get-Command dotnet-sonarscanner -ErrorAction SilentlyContinue)) {
-            dotnet tool install --global dotnet-sonarscanner
-          }
+        run: dotnet tool install --global dotnet-sonarscanner
 
-      - name: Build and Analyze
-        shell: pwsh
+      - name: Build and analyze with SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          # Start analysis - use environment variable directly
-          dotnet sonarscanner begin `
-            /k:"j-mirana_NetSdrClient_labs" `
-            /o:"j-mirana" `
-            /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.token="$env:SONAR_TOKEN"
-
-          # Build solution
+          dotnet sonarscanner begin /k:"j-mirana_NetSdrClient_labs" /o:"j-mirana" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.token=$env:SONAR_TOKEN
           dotnet build NetSdrClient.sln --no-incremental
-
-          # End analysis
-          dotnet sonarscanner end `
-            /d:sonar.token="$env:SONAR_TOKEN"
+          dotnet sonarscanner end /d:sonar.token=$env:SONAR_TOKEN
