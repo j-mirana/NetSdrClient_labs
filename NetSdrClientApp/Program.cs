@@ -1,15 +1,24 @@
 ﻿using NetSdrClientApp;
 using NetSdrClientApp.Networking;
 
-Console.WriteLine(@"Usage:
+// 1. Визначення констант для Магічних чисел (Magic Numbers)
+private const string DefaultTcpAddress = "127.0.0.1";
+private const int DefaultTcpPort = 5000;
+private const int DefaultUdpPort = 60000;
+private const long DefaultFrequency = 20000000;
+private const int DefaultGain = 1;
+
+
+Console.WriteLine($@"Usage:
 C - connect
 D - disconnet
-F - set frequency
+F - set frequency (Default: {DefaultFrequency} Hz, Gain: {DefaultGain})
 S - Start/Stop IQ listener
 Q - quit");
 
-var tcpClient = new TcpClientWrapper("127.0.0.1", 5000);
-var udpClient = new UdpClientWrapper(60000);
+// Використання констант замість хардкоду
+var tcpClient = new TcpClientWrapper(DefaultTcpAddress, DefaultTcpPort);
+var udpClient = new UdpClientWrapper(DefaultUdpPort);
 
 var netSdr = new NetSdrClient(tcpClient, udpClient);
 
@@ -22,11 +31,13 @@ while (true)
     }
     else if (key == ConsoleKey.D)
     {
-        netSdr.Disconect();
+        // Примітка: Метод Disconect буде перейменовано на Disconnect у NetSdrClient.cs
+        netSdr.Disconnect();
     }
     else if (key == ConsoleKey.F)
     {
-        await netSdr.ChangeFrequencyAsync(20000000, 1);
+        // Використання констант для частоти та гейну
+        await netSdr.ChangeFrequencyAsync(DefaultFrequency, DefaultGain);
     }
     else if (key == ConsoleKey.S)
     {

@@ -10,29 +10,34 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Networking
 {
+    // Виправлення: Клас тепер приймає ILogger для виведення повідомлень
     public class TcpClientWrapper : ITcpClient
     {
+        private readonly ILogger _logger; // Використання ILogger
         private string _host;
         private int _port;
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
         private CancellationTokenSource _cts;
 
+        // Виправлення: У ITcpClient.cs потрібно видалити зайвий "public"
         public bool Connected => _tcpClient != null && _tcpClient.Connected && _stream != null;
 
         public event EventHandler<byte[]>? MessageReceived;
 
-        public TcpClientWrapper(string host, int port)
+        // Виправлення: ILogger додано до конструктора
+        public TcpClientWrapper(string host, int port, ILogger logger)
         {
             _host = host;
             _port = port;
+            _logger = logger;
         }
 
         public void Connect()
         {
             if (Connected)
             {
-                Console.WriteLine($"Already connected to {_host}:{_port}");
+                _logger.Log($"Already connected to {_host}:{_port}"); // Виправлено Console.WriteLine
                 return;
             }
 
@@ -43,12 +48,12 @@ namespace NetSdrClientApp.Networking
                 _cts = new CancellationTokenSource();
                 _tcpClient.Connect(_host, _port);
                 _stream = _tcpClient.GetStream();
-                Console.WriteLine($"Connected to {_host}:{_port}");
+                _logger.Log($"Connected to {_host}:{_port}"); // Виправлено Console.WriteLine
                 _ = StartListeningAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to connect: {ex.Message}");
+                _logger.LogError($"Failed to connect: {ex.Message}"); // Виправлено Console.WriteLine
             }
         }
 
@@ -63,11 +68,11 @@ namespace NetSdrClientApp.Networking
                 _cts = null;
                 _tcpClient = null;
                 _stream = null;
-                Console.WriteLine("Disconnected.");
+                _logger.Log("Disconnected."); // Виправлено Console.WriteLine
             }
             else
             {
-                Console.WriteLine("No active connection to disconnect.");
+                _logger.Log("No active connection to disconnect."); // Виправлено Console.WriteLine
             }
         }
 
@@ -75,7 +80,7 @@ namespace NetSdrClientApp.Networking
         {
             if (Connected && _stream != null && _stream.CanWrite)
             {
-                Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+                _logger.Log($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}")); // Виправлено Console.WriteLine
                 await _stream.WriteAsync(data, 0, data.Length);
             }
             else
@@ -89,7 +94,7 @@ namespace NetSdrClientApp.Networking
             var data = Encoding.UTF8.GetBytes(str);
             if (Connected && _stream != null && _stream.CanWrite)
             {
-                Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+                _logger.Log($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}")); // Виправлено Console.WriteLine
                 await _stream.WriteAsync(data, 0, data.Length);
             }
             else
@@ -104,7 +109,7 @@ namespace NetSdrClientApp.Networking
             {
                 try
                 {
-                    Console.WriteLine($"Starting listening for incomming messages.");
+                    _logger.Log($"Starting listening for incomming messages."); // Виправлено Console.WriteLine
 
                     while (!_cts.Token.IsCancellationRequested)
                     {
@@ -119,15 +124,18 @@ namespace NetSdrClientApp.Networking
                 }
                 catch (OperationCanceledException ex)
                 {
-                    //empty
+                    // Виправлення: Порожній блок catch
+                    // Це виключення є очікуваним і виникає, коли _cts.Cancel() викликається 
+                    // для зупинки циклу прослуховування. Воно ігнорується, оскільки
+                    // є частиною нормального процесу відключення.
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error in listening loop: {ex.Message}");
+                    _logger.LogError($"Error in listening loop: {ex.Message}"); // Виправлено Console.WriteLine
                 }
                 finally
                 {
-                    Console.WriteLine("Listener stopped.");
+                    _logger.Log("Listener stopped."); // Виправлено Console.WriteLine
                 }
             }
             else
@@ -136,5 +144,4 @@ namespace NetSdrClientApp.Networking
             }
         }
     }
-
 }

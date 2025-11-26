@@ -14,6 +14,6 @@ namespace NetSdrClientApp.Networking
         Task SendMessageAsync(byte[] data);
 
         event EventHandler<byte[]> MessageReceived;
-        public bool Connected { get; }
+        bool Connected { get; }
     }
 }

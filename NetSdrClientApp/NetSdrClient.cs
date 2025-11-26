@@ -53,7 +53,7 @@ namespace NetSdrClientApp
             }
         }
 
-        public void Disconect()
+        public void Disconnect()
         {
             _tcpClient.Disconnect();
         }
