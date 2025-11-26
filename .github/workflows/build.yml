@@ -41,11 +41,23 @@ jobs:
         run: |
           New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
+          
+      # ВИПРАВЛЕННЯ: Явно передаємо токен через змінну середовища та в аргументи
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"j-mirana_NetSdrClient_labs" /o:"j-mirana" /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-          dotnet build
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          $scannerPath = "${{ runner.temp }}\scanner\dotnet-sonarscanner"
+          
+          # BEGIN STEP
+          & $scannerPath begin `
+            /k:"j-mirana_NetSdrClient_labs" `
+            /o:"j-mirana" `
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+          # BUILD STEP
+          dotnet build NetSdrClient.sln
+          
+          # END STEP
+          & $scannerPath end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"

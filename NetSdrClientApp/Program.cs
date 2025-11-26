@@ -2,11 +2,11 @@
 using NetSdrClientApp.Networking;
 
 // 1. Визначення констант для Магічних чисел (Magic Numbers)
-private const string DefaultTcpAddress = "127.0.0.1";
-private const int DefaultTcpPort = 5000;
-private const int DefaultUdpPort = 60000;
-private const long DefaultFrequency = 20000000;
-private const int DefaultGain = 1;
+const string DefaultTcpAddress = "127.0.0.1";
+const int DefaultTcpPort = 5000;
+const int DefaultUdpPort = 60000;
+const long DefaultFrequency = 20000000;
+const int DefaultGain = 1;
 
 
 Console.WriteLine($@"Usage:
