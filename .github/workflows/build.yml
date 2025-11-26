@@ -31,19 +31,19 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-          
+      
       # 1. CLEAN UP (Видалення конфліктуючого файлу)
       - name: Clean up sonar-project.properties
         run: |
           Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
         shell: pwsh
         
-      # 2. ІНСТАЛЯЦІЯ SONAR SCANNER (Використовуємо .NET tool)
+      # 2. Установка та виконання .NET Sonar Scanner
       - name: Install Sonar Scanner
         run: dotnet tool install --global dotnet-sonarscanner
         shell: pwsh
       
-      # 3. SONARSCANNER BEGIN & BUILD
+      # 3. SONARSCANNER BEGIN & BUILD (ВИПРАВЛЕНО!)
       - name: SonarScanner Begin & Build
         shell: pwsh
         run: |
@@ -54,20 +54,19 @@ jobs:
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
             /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" `
             /d:sonar.login="$env:SONAR_TOKEN" 
           
-          # BUILD STEP
+          # BUILD STEP (Залишаємо тільки Build, Test буде окремо)
           dotnet build NetSdrClient.sln
           
-      # 4. ТЕСТУВАННЯ ТА ПОКРИТТЯ (Окремий крок для Лаби 3)
-      # ВИПРАВЛЕННЯ: Цей блок тепер є окремим кроком у YAML
+      # 4. ТЕСТУВАННЯ ТА ПОКРИТТЯ (КРИТИЧНЕ ВИПРАВЛЕННЯ: ПРИБРАНО --no-build)
       - name: Tests with coverage (OpenCover)
         shell: pwsh
-        run: dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
+        run: dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
           /p:CollectCoverage=true `
           /p:CoverletOutput=TestResults/coverage.xml `
           /p:CoverletOutputFormat=opencover
-
           
       # 5. SONARSCANNER END
       - name: SonarScanner End
