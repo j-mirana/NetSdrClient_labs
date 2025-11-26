@@ -19,6 +19,8 @@ namespace NetSdrClientApp
 
         public bool IQStarted { get; set; }
 
+        private TaskCompletionSource<byte[]>? responseTaskSource = null; // Фікс CS8618
+
         public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient)
         {
             _tcpClient = tcpClient;
@@ -53,7 +55,8 @@ namespace NetSdrClientApp
             }
         }
 
-        public void Disconect()
+        // Виправлення: Перейменування методу з Disconect на Disconnect (Typos)
+        public void Disconnect()
         {
             _tcpClient.Disconnect();
         }
@@ -66,7 +69,7 @@ namespace NetSdrClientApp
                 return;
             }
 
-;           var iqDataMode = (byte)0x80;
+; var iqDataMode = (byte)0x80;
             var start = (byte)0x02;
             var fifo16bitCaptureMode = (byte)0x01;
             var n = (byte)1;
@@ -74,7 +77,7 @@ namespace NetSdrClientApp
             var args = new[] { iqDataMode, start, fifo16bitCaptureMode, n };
 
             var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
-            
+
             await SendTcpRequest(msg);
 
             IQStarted = true;
@@ -131,14 +134,14 @@ namespace NetSdrClientApp
             }
         }
 
-        private TaskCompletionSource<byte[]> responseTaskSource;
+        // private TaskCompletionSource<byte[]>? responseTaskSource; // Винесено на початок класу
 
-        private async Task<byte[]> SendTcpRequest(byte[] msg)
+        private async Task<byte[]?> SendTcpRequest(byte[] msg) // Змінено тип повернення на Task<byte[]?>
         {
             if (!_tcpClient.Connected)
             {
-                Console.WriteLine("No active connection.");
-                return null;
+                // Console.WriteLine("No active connection."); // Логування має бути через ILogger
+                return null; // CS8603 та CS8625 - повертаємо null
             }
 
             responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
