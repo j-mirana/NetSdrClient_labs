@@ -31,45 +31,46 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      
-      # ВИПРАВЛЕННЯ 1: Видалення конфліктуючого файлу конфігурації
+          
+      # 1. CLEAN UP (Видалення конфліктуючого файлу)
       - name: Clean up sonar-project.properties
         run: |
           Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
         shell: pwsh
-      
-      # 2. Установка та виконання .NET Sonar Scanner (Оптимізовано)
+        
+      # 2. ІНСТАЛЯЦІЯ SONAR SCANNER (Використовуємо .NET tool)
       - name: Install Sonar Scanner
-        run: |
-          if (-not (Get-Command dotnet-sonarscanner -ErrorAction SilentlyContinue)) {
-            dotnet tool install --global dotnet-sonarscanner
-          }
+        run: dotnet tool install --global dotnet-sonarscanner
         shell: pwsh
       
-      - name: Build and Analyze
+      # 3. SONARSCANNER BEGIN & BUILD
+      - name: SonarScanner Begin & Build
         shell: pwsh
         run: |
-          # Встановлення шляху
           $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
           
-          # BEGIN STEP: Додано шлях до звіту про покриття!
+          # BEGIN STEP
           & $scannerPath begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" ` # <-- ДОДАНО ШЛЯХ
             /d:sonar.login="$env:SONAR_TOKEN" 
           
           # BUILD STEP
           dotnet build NetSdrClient.sln
           
-          # ТЕСТУВАННЯ ТА ПОКРИТТЯ (Лаба 3)
-          - name: Tests with coverage (OpenCover)
-            run: dotnet test NetSdrClientAppTests\NetSdrClientAppTests.csproj -c Release --no-build `
-              /p:CollectCoverage=true `
-              /p:CoverletOutput=TestResults/coverage.xml `
-              /p:CoverletOutputFormat=opencover
-            shell: pwsh
+      # 4. ТЕСТУВАННЯ ТА ПОКРИТТЯ (Окремий крок для Лаби 3)
+      # ВИПРАВЛЕННЯ: Цей блок тепер є окремим кроком у YAML
+      - name: Tests with coverage (OpenCover)
+        shell: pwsh
+        run: dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
+          /p:CollectCoverage=true `
+          /p:CoverletOutput=TestResults/coverage.xml `
+          /p:CoverletOutputFormat=opencover
           
-          # END STEP
+      # 5. SONARSCANNER END
+      - name: SonarScanner End
+        shell: pwsh
+        run: |
+          $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
           & $scannerPath end /d:sonar.login="$env:SONAR_TOKEN"
