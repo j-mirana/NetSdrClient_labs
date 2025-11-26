@@ -10,56 +10,14 @@ on:
     branches:
       - lab1
 jobs:
-  build:
-    name: Build and analyze
+  sonarqube:
+    name: SonarQube
     runs-on: windows-latest
-    # ВИПРАВЛЕННЯ: Токен визначений на рівні job. 
-    # SonarScanner (dotnet sonarscanner) автоматично шукає SONAR_TOKEN у змінних середовища.
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: 'zulu'
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - name: Cache SonarQube Cloud packages
-        uses: actions/cache@v4
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-      - name: Cache SonarQube Cloud scanner
-        id: cache-sonar-scanner
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
-      - name: Install SonarQube Cloud scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
-          
-      # ВИПРАВЛЕННЯ: Тепер ми не передаємо /d:sonar.token в команду, 
-      # а покладаємося на те, що сканер прочитає його з env.
-      - name: Build and analyze
-        shell: powershell
-        run: |
-          $scannerPath = "${{ runner.temp }}\scanner\dotnet-sonarscanner"
-          
-          # BEGIN STEP
-          & $scannerPath begin `
-            /k:"j-mirana_NetSdrClient_labs" `
-            /o:"j-mirana" 
-          
-          # BUILD STEP
-          dotnet build NetSdrClient.sln
-          
-          # END STEP: Теж без токена, він автоматично береться з env.
-          & $scannerPath end
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
