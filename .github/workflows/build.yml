@@ -18,10 +18,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: 17
-          distribution: 'zulu' # Alternative distribution options are available.
+          distribution: 'zulu'
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
       - name: Cache SonarQube Cloud packages
         uses: actions/cache@v4
         with:
@@ -42,22 +42,23 @@ jobs:
           New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
           
-      # ВИПРАВЛЕННЯ: Явно передаємо токен через змінну середовища та в аргументи
+      # ВИПРАВЛЕННЯ: Використовуємо змінну середовища, а не передачу токена через аргумент /d:sonar.token=...
+      # SonarScanner автоматично підхоплює SONAR_TOKEN, якщо він визначений в 'env'.
       - name: Build and analyze
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # Токен тепер доступний як змінна середовища
         shell: powershell
         run: |
           $scannerPath = "${{ runner.temp }}\scanner\dotnet-sonarscanner"
           
-          # BEGIN STEP
+          # BEGIN STEP: Прибираємо /d:sonar.token, оскільки SonarScanner автоматично знайде його в ENV.
+          # Це вирішує проблему з форматом.
           & $scannerPath begin `
             /k:"j-mirana_NetSdrClient_labs" `
-            /o:"j-mirana" `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-
+            /o:"j-mirana" 
+          
           # BUILD STEP
           dotnet build NetSdrClient.sln
           
-          # END STEP
-          & $scannerPath end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          # END STEP: Прибираємо /d:sonar.token
+          & $scannerPath end
