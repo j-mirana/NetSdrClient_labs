@@ -42,23 +42,21 @@ jobs:
           New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
           
-      # ВИПРАВЛЕННЯ: Використовуємо змінну середовища, а не передачу токена через аргумент /d:sonar.token=...
-      # SonarScanner автоматично підхоплює SONAR_TOKEN, якщо він визначений в 'env'.
+      # ВИПРАВЛЕННЯ: Явно передаємо токен в BEGIN та END.
+      # Це гарантує, що SonarScanner отримає токен для аутентифікації.
       - name: Build and analyze
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # Токен тепер доступний як змінна середовища
         shell: powershell
         run: |
           $scannerPath = "${{ runner.temp }}\scanner\dotnet-sonarscanner"
           
-          # BEGIN STEP: Прибираємо /d:sonar.token, оскільки SonarScanner автоматично знайде його в ENV.
-          # Це вирішує проблему з форматом.
+          # BEGIN STEP
           & $scannerPath begin `
             /k:"j-mirana_NetSdrClient_labs" `
-            /o:"j-mirana" 
+            /o:"j-mirana" `
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" # Явна передача токена
           
           # BUILD STEP
           dotnet build NetSdrClient.sln
           
-          # END STEP: Прибираємо /d:sonar.token
-          & $scannerPath end
+          # END STEP
+          & $scannerPath end /d:sonar.token="${{ secrets.SONAR_TOKEN }}" # Явна передача токена
