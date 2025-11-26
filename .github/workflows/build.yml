@@ -3,12 +3,13 @@ on:
   # 1. Тригер на push у гілку 'lab1'
   push:
     branches:
-      - lab1
+      - fix/code-smells-lab2
   
   # 2. Тригер на pull_request, що таргетує гілку 'lab1'
   pull_request:
     branches:
-      - lab1
+      - fix/code-smells-lab2
+
 jobs:
   sonarqube:
     name: SonarQube
