@@ -47,19 +47,19 @@ jobs:
 
       - name: Build and Analyze
         shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          $scanner = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
-
-          # Start analysis
-          & $scanner begin `
+          # Start analysis - use environment variable directly
+          dotnet sonarscanner begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.login=$env:SONAR_TOKEN
+            /d:sonar.token="$env:SONAR_TOKEN"
 
           # Build solution
           dotnet build NetSdrClient.sln --no-incremental
 
           # End analysis
-          & $scanner end `
-            /d:sonar.login=$env:SONAR_TOKEN
+          dotnet sonarscanner end `
+            /d:sonar.token="$env:SONAR_TOKEN"
