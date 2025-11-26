@@ -14,7 +14,7 @@ jobs:
     name: Build and analyze
     runs-on: windows-latest
     
-    # Визначаємо токен для використання в Powershell
+    # КРИТИЧНО: ВИЗНАЧАЄМО ТОКЕН ТУТ.
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       
@@ -38,35 +38,34 @@ jobs:
           Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
         shell: pwsh
         
-      # 2. Установка .NET Sonar Scanner (використовуємо глобальну установку)
+      # 2. Установка .NET Sonar Scanner
       - name: Install Sonar Scanner
         run: dotnet tool install --global dotnet-sonarscanner
         shell: pwsh
       
-      # 3. ФІНАЛЬНА ЗБІРКА ТА АНАЛІЗ (ОБ'ЄДНАНО В ОДИН RUN-БЛОК ДЛЯ СТАБІЛЬНОСТІ)
-      # Цей крок замінює всі попередні кроки 3, 4, 5
+      # 3. ВСІ ЕТАПИ АНАЛІЗУ В ОДНОМУ БЛОЦІ
       - name: SonarScanner Analysis, Build, Test, and End
         shell: pwsh
         run: |
           # Встановлюємо шлях до сканера
           $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
           
-          # 3.1 BEGIN STEP
+          # 3.1 BEGIN STEP (БЕЗ ЖОДНИХ /d:sonar.login АРГУМЕНТІВ)
           & $scannerPath begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" `
-            /d:sonar.login="$env:SONAR_TOKEN" 
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" 
           
-          # 3.2 BUILD STEP (Використовуємо Release для Coverlet)
+          # 3.2 BUILD STEP
           dotnet build NetSdrClient.sln -c Release
           
-          # 3.3 TEST & COVERAGE STEP (Вже без --no-build, як було виправлено)
+          # 3.3 TEST & COVERAGE STEP
+          # Використовуємо -c Release, оскільки build теж Release
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
           
-          # 3.4 END STEP
-          & $scannerPath end /d:sonar.login="$env:SONAR_TOKEN"
+          # 3.4 END STEP (БЕЗ ЖОДНИХ /d:sonar.login АРГУМЕНТІВ)
+          & $scannerPath end
