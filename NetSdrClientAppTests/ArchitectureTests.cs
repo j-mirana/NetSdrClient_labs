@@ -1,5 +1,6 @@
 ﻿using NetArchTest.Rules;
 using NUnit.Framework;
+using System.Linq;
 using System.Reflection;
 
 namespace NetSdrClientAppTests
@@ -20,30 +21,30 @@ namespace NetSdrClientAppTests
         [Test]
         public void Application_Should_Not_Depend_On_Test_Libraries()
         {
-            string[] forbiddenReferences = new[]
+            string[] forbiddenReferences =
             {
                 "NUnit",
                 "Moq",
                 "coverlet.core"
             };
 
-            // Act: Визначаємо правило
             var result = Types
                 .InAssembly(_assembly)
                 .ShouldNot()
                 .HaveDependencyOnAny(forbiddenReferences)
                 .GetResult();
 
-            // Assert: Перевіряємо, що правило не порушено.
+            // Правильний stringify
+            var failing = result.FailingTypes?.Select(t => t.FullName).ToArray() ?? new string[0];
+
             Assert.That(result.IsSuccessful,
-                $"Архітектурне правило порушено. Залежності від тестових бібліотек знайдено: {string.Join(", ", result.FailingTypes ?? new string[0])}");
+                $"Архітектурне правило порушено. Залежності від тестових бібліотек знайдено: {string.Join(", ", failing)}");
         }
 
         // ПРАВИЛО 2: Класи в шарі Networking повинні реалізовувати інтерфейси.
         [Test]
         public void NetworkingClasses_Should_Implement_Interfaces()
         {
-            // Act: Визначаємо правило
             var result = Types
                 .InNamespace(NetworkingNamespace)
                 .That()
@@ -51,15 +52,18 @@ namespace NetSdrClientAppTests
                 .And()
                 .HaveNameEndingWith("Wrapper")
                 .Should()
-                .ImplementInterface()
+                .ImplementInterface(typeof(NetSdrClientApp.Networking.IUdpClient)) // ← Явний Type!
+                .Or()                                                             // дозволити інші інтерфейси
+                .ImplementInterface(typeof(NetSdrClientApp.Networking.ITcpClient))
                 .GetResult();
 
-            // Assert: Перевіряємо, що правило не порушено.
+            var failing = result.FailingTypes?.Select(t => t.FullName).ToArray() ?? new string[0];
+
             Assert.That(result.IsSuccessful,
-                $"Архітектурне правило порушено. Класи в {NetworkingNamespace} повинні реалізовувати інтерфейси. Класи, що порушують правило: {string.Join(", ", result.FailingTypes ?? new string[0])}");
+                $"Архітектурне правило порушено. Класи в {NetworkingNamespace} повинні реалізовувати інтерфейси. Порушники: {string.Join(", ", failing)}");
         }
 
-        // ПРАВИЛО 3: Клас NetSdrClient (головний) повинен бути кінцевою точкою.
+        // ПРАВИЛО 3: NetSdrClient повинен бути sealed.
         [Test]
         public void NetSdrClient_Should_Be_Sealed()
         {
@@ -71,11 +75,13 @@ namespace NetSdrClientAppTests
                 .BeSealed()
                 .GetResult();
 
+            var failing = result.FailingTypes?.Select(t => t.FullName).ToArray() ?? new string[0];
+
             Assert.That(result.IsSuccessful,
-                $"Клас NetSdrClient повинен бути 'sealed', щоб запобігти успадкуванню. Поточний стан: {string.Join(", ", result.FailingTypes ?? new string[0])}");
+                $"Клас NetSdrClient повинен бути 'sealed'. Порушники: {string.Join(", ", failing)}");
         }
 
-        // ДОДАТКОВЕ ПРАВИЛО: Перевірка, що інтерфейси визначені правильно
+        // ПРАВИЛО 4: Інтерфейси повинні бути у правильному namespace
         [Test]
         public void Interfaces_Should_Be_In_Correct_Namespace()
         {
@@ -86,11 +92,13 @@ namespace NetSdrClientAppTests
                 .And()
                 .HaveNameStartingWith("I")
                 .Should()
-                .ResideInNamespace("NetSdrClientApp.Networking")
+                .ResideInNamespace(NetworkingNamespace)
                 .GetResult();
 
+            var failing = result.FailingTypes?.Select(t => t.FullName).ToArray() ?? new string[0];
+
             Assert.That(result.IsSuccessful,
-                $"Інтерфейси повинні знаходитись у просторі імен Networking. Порушення: {string.Join(", ", result.FailingTypes ?? new string[0])}");
+                $"Інтерфейси повинні знаходитись у просторі імен Networking. Порушення: {string.Join(", ", failing)}");
         }
     }
 }
