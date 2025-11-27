@@ -1,18 +1,22 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-// Клас EchoServer виділено та зроблено тестованим
+namespace EchoTcpServer;
+
+// -------------------------------
+// EchoServer
+// -------------------------------
 public class EchoServer
 {
     private readonly int _port;
-    private readonly ITcpListener _listener; // Впровадження залежності
-    private readonly ILogger _logger;       // Впровадження залежності
+    private readonly ITcpListener _listener;
+    private readonly ILogger _logger;
     private readonly CancellationTokenSource _cancellationTokenSource;
-
 
     public EchoServer(int port, ITcpListener listener, ILogger logger)
     {
@@ -31,16 +35,12 @@ public class EchoServer
         {
             try
             {
-                // Приймаємо клієнта
                 TcpClient client = await _listener.AcceptTcpClientAsync();
                 _logger.Log("Client connected.");
-
-                // Обробка клієнта у фоновому потоці
                 _ = Task.Run(() => HandleClientAsync(client, _cancellationTokenSource.Token));
             }
             catch (ObjectDisposedException)
             {
-                // Слухач закрито (Stop() було викликано)
                 break;
             }
         }
@@ -50,29 +50,29 @@ public class EchoServer
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken token)
     {
-        using (NetworkStream stream = client.GetStream())
-        {
-            try
-            {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
+        using NetworkStream stream = client.GetStream();
 
-                while (!token.IsCancellationRequested && (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
-                {
-                    // Echo back the received message
-                    await stream.WriteAsync(buffer, 0, bytesRead, token);
-                    _logger.Log($"Echoed {bytesRead} bytes to the client."); // Використовуємо логер
-                }
-            }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
+        try
+        {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+
+            while (!token.IsCancellationRequested &&
+       (bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), token)) > 0)
             {
-                _logger.LogError($"Error: {ex.Message}"); // Використовуємо логер
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), token);
+                _logger.Log($"Echoed {bytesRead} bytes to the client.");
             }
-            finally
-            {
-                client.Close();
-                _logger.Log("Client disconnected."); // Використовуємо логер
-            }
+
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            client.Close();
+            _logger.Log("Client disconnected.");
         }
     }
 
@@ -81,19 +81,22 @@ public class EchoServer
         _cancellationTokenSource.Cancel();
         _listener.Stop();
         _cancellationTokenSource.Dispose();
-        _logger.Log("Server stopped."); // Використовуємо логер
+        _logger.Log("Server stopped.");
     }
 }
 
-
-// Також рефакторимо UdpTimedSender для використання ILogger
+// -------------------------------
+// UdpTimedSender
+// -------------------------------
 public class UdpTimedSender : IDisposable
 {
     private readonly string _host;
     private readonly int _port;
     private readonly UdpClient _udpClient;
-    private readonly ILogger _logger; // Додано логер
+    private readonly ILogger _logger;
     private Timer? _timer;
+
+    private ushort _counter = 0;
 
     public UdpTimedSender(string host, int port, ILogger logger)
     {
@@ -111,27 +114,28 @@ public class UdpTimedSender : IDisposable
         _timer = new Timer(SendMessageCallback, null, 0, intervalMilliseconds);
     }
 
-    ushort i = 0;
-
     private void SendMessageCallback(object? state)
     {
         try
         {
-            //dummy data
-            Random rnd = new Random();
             byte[] samples = new byte[1024];
-            rnd.NextBytes(samples);
-            i++;
+            RandomNumberGenerator.Fill(samples);
 
-            byte[] msg = (new byte[] { 0x04, 0x84 }).Concat(BitConverter.GetBytes(i)).Concat(samples).ToArray();
+            _counter++;
+
+            byte[] msg = new byte[] { 0x04, 0x84 }
+                .Concat(BitConverter.GetBytes(_counter))
+                .Concat(samples)
+                .ToArray();
+
             var endpoint = new IPEndPoint(IPAddress.Parse(_host), _port);
-
             _udpClient.Send(msg, msg.Length, endpoint);
-            _logger.Log($"Message sent to {_host}:{_port} "); // Використовуємо логер
+
+            _logger.Log($"Message sent to {_host}:{_port}");
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error sending message: {ex.Message}"); // Використовуємо логер
+            _logger.LogError($"Error sending message: {ex.Message}");
         }
     }
 
@@ -143,7 +147,17 @@ public class UdpTimedSender : IDisposable
 
     public void Dispose()
     {
-        StopSending();
-        _udpClient.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            StopSending();
+            _udpClient.Dispose();
+        }
+    }
+
 }
