@@ -1,72 +1,67 @@
 name: SonarQube
+
 on:
-  # 1. Тригер на push у гілку 'lab1'
   push:
     branches:
       - lab1
-  
-  # 2. Тригер на pull_request, що таргетує гілку 'lab1'
   pull_request:
     branches:
       - lab1
+
 jobs:
   build:
     name: Build and analyze
     runs-on: windows-latest
-    
-    # КРИТИЧНО: ВИЗНАЧАЄМО ТОКЕН ТУТ.
+
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      
+
     permissions:
-      pull-requests: write 
+      pull-requests: write
       contents: read
-    
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      
-      # 1. CLEAN UP (Видалення конфліктуючого файлу)
-      - name: Clean up sonar-project.properties
-        run: |
-          Remove-Item -Path ".\sonar-project.properties" -Force -ErrorAction SilentlyContinue
+
+      - name: Remove sonar-project.properties (conflicts)
         shell: pwsh
-        
-      # 2. Установка .NET Sonar Scanner
-      - name: Install Sonar Scanner
+        run: |
+          Remove-Item -Path "sonar-project.properties" -Force -ErrorAction SilentlyContinue
+
+      - name: Install SonarScanner for .NET
+        shell: pwsh
         run: dotnet tool install --global dotnet-sonarscanner
-        shell: pwsh
-      
-      # 3. ВСІ ЕТАПИ АНАЛІЗУ В ОДНОМУ БЛОЦІ
-      - name: SonarScanner Analysis, Build, Test, and End
+
+      - name: SonarCloud Begin, Build, Test, End
         shell: pwsh
         run: |
-          # Встановлюємо шлях до сканера
-          $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
-          
-          # 3.1 BEGIN STEP (БЕЗ ЖОДНИХ /d:sonar.login АРГУМЕНТІВ)
-          # SonarScanner ПОВИНЕН підхопити токен з env:SONAR_TOKEN
-          & $scannerPath begin `
+          $scanner = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
+
+          # === BEGIN ===
+          & $scanner begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" 
-          
-          # 3.2 BUILD STEP
+            /d:sonar.login="$env:SONAR_TOKEN" `
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml"
+
+          # === BUILD ===
           dotnet build NetSdrClient.sln -c Release
-          
-          # 3.3 TEST & COVERAGE STEP
+
+          # === TEST WITH COVERAGE ===
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
-          
-          # 3.4 END STEP (БЕЗ ЖОДНИХ /d:sonar.login АРГУМЕНТІВ)
-          # Якщо токен правильний, цей крок має успішно відправити результати.
-          & $scannerPath end
+
+          # === END ===
+          & $scanner end `
+            /d:sonar.login="$env:SONAR_TOKEN"
