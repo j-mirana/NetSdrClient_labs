@@ -51,6 +51,7 @@ jobs:
           $scannerPath = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
           
           # 3.1 BEGIN STEP (БЕЗ ЖОДНИХ /d:sonar.login АРГУМЕНТІВ)
+          # SonarScanner ПОВИНЕН підхопити токен з env:SONAR_TOKEN
           & $scannerPath begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
@@ -61,11 +62,11 @@ jobs:
           dotnet build NetSdrClient.sln -c Release
           
           # 3.3 TEST & COVERAGE STEP
-          # Використовуємо -c Release, оскільки build теж Release
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
           
           # 3.4 END STEP (БЕЗ ЖОДНИХ /d:sonar.login АРГУМЕНТІВ)
+          # Якщо токен правильний, цей крок має успішно відправити результати.
           & $scannerPath end
