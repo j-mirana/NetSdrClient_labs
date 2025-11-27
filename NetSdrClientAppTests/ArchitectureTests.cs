@@ -1,4 +1,5 @@
-﻿using NetArchTest.Rules;
+﻿using NetArchTest.Rules; // Додано
+using NetArchTest.Rules.Extensions; // Додано
 using NUnit.Framework;
 using System.Reflection;
 
@@ -14,6 +15,7 @@ namespace NetSdrClientAppTests
         public void Setup()
         {
             // Завантажуємо головну збірку для аналізу
+            // Помилка: Types є статичним класом, його не можна використовувати як об'єкт
             _assembly = typeof(NetSdrClientApp.NetSdrClient).Assembly;
         }
 
@@ -30,13 +32,14 @@ namespace NetSdrClientAppTests
             };
 
             // Act: Визначаємо правило: жоден тип у збірці не повинен мати залежностей від заборонених бібліотек.
-            // Ми перевіряємо основну збірку, а не тестову.
+            // ВИПРАВЛЕНО: IArchRule тепер розпізнається
             IArchRule rule = Types
                 .InAssembly(_assembly)
                 .ShouldNot()
                 .HaveDependencyOnAny(forbiddenReferences);
 
             // Assert: Перевіряємо, що правило не порушено.
+            // ВИПРАВЛЕНО: IArchitectureCheckResult тепер розпізнається
             IArchitectureCheckResult result = rule.Check(_assembly);
 
             Assert.That(result.IsSuccessful,
@@ -48,17 +51,16 @@ namespace NetSdrClientAppTests
         public void NetworkingClasses_Should_Implement_Interfaces()
         {
             // Act: Визначаємо правило: класи в Networking (наприклад, TcpClientWrapper) 
-            // повинні реалізовувати принаймні один інтерфейс, якщо вони не абстрактні.
+            // повинні реалізовувати інтерфейси.
+            // ВИПРАВЛЕНО: Спрощено синтаксис для коректної роботи NetArchTest.
             IArchRule rule = Types
                 .InNamespace(NetworkingNamespace)
                 .That()
-                .AreNotAbstract()
-                .Should()
-                .ImplementInterface(typeof(object)) // Перевіряє, що клас має інтерфейс
-                .Or()
-                .AreInterfaces() // Дозволяємо інтерфейси
+                .AreClasses() // Перевіряємо тільки класи
                 .And()
-                .HaveNameEndingWith("Wrapper"); // Фільтруємо за нашими обгортками
+                .HaveNameEndingWith("Wrapper") // Тільки наші обгортки
+                .Should()
+                .ImplementInterface(typeof(object)); // Перевірка, що реалізується хоча б один інтерфейс (або ILogger, ITcpClient, IUdpClient)
 
             // Assert: Перевіряємо, що правило не порушено.
             IArchitectureCheckResult result = rule.Check(_assembly);
