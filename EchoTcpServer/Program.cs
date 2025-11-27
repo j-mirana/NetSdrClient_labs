@@ -58,11 +58,12 @@ public class EchoServer
             int bytesRead;
 
             while (!token.IsCancellationRequested &&
-                   (bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+       (bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), token)) > 0)
             {
-                await stream.WriteAsync(buffer, 0, bytesRead, token);
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), token);
                 _logger.Log($"Echoed {bytesRead} bytes to the client.");
             }
+
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -146,7 +147,17 @@ public class UdpTimedSender : IDisposable
 
     public void Dispose()
     {
-        StopSending();
-        _udpClient.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            StopSending();
+            _udpClient.Dispose();
+        }
+    }
+
 }
