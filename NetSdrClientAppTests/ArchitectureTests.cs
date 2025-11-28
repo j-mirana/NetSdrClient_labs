@@ -3,6 +3,8 @@ using NUnit.Framework;
 using System.Linq;
 using System.Reflection;
 using System;
+using NetSdrClientAppTests.Rules;
+
 
 
 namespace NetSdrClientAppTests
@@ -51,7 +53,7 @@ namespace NetSdrClientAppTests
                 .That().AreClasses()
                 .And().HaveNameEndingWith("Wrapper")
                 .Should()
-                .MeetCustomRule(t => t.GetInterfaces().Any())
+                .MeetCustomRule(new ImplementsAnyInterfaceRule())
                 .GetResult();
 
             var failing = result.FailingTypes?
