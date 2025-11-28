@@ -39,7 +39,6 @@ jobs:
 
       # ---------------------------
       # 3. FULL CLEAN WORKSPACE
-      # (fixes phantom Sonar errors)
       # ---------------------------
       - name: Full Clean Workspace
         shell: pwsh
@@ -47,17 +46,8 @@ jobs:
           git clean -xfd
           dotnet clean NetSdrClient.sln
 
-            # ---------------------------
-      # 3.5. Validate Build
-      # ---------------------------
-      - name: Validate Build
-        shell: pwsh
-        run: |
-          dotnet build NetSdrClient.sln -c Release --no-restore
-
       # ---------------------------
       # 4. Remove sonar-project.properties
-      # (SonarCloud requires tool mode)
       # ---------------------------
       - name: Remove sonar-project.properties
         shell: pwsh
@@ -65,8 +55,7 @@ jobs:
           Remove-Item -Path "sonar-project.properties" -ErrorAction SilentlyContinue
 
       # ---------------------------
-      # 5. Reinstall Sonar Scanner fully
-      # (critical: fixes stale global tool cache)
+      # 5. Reinstall Sonar Scanner
       # ---------------------------
       - name: Reinstall Sonar Scanner
         shell: pwsh
@@ -90,14 +79,21 @@ jobs:
             /d:sonar.exclusions="**/bin/**,**/obj/**"
 
       # ---------------------------
-      # 7. Build Solution
+      # 7. RESTORE NUGET PACKAGES (CRITICAL FIX)
+      # ---------------------------
+      - name: Restore NuGet Packages
+        shell: pwsh
+        run: dotnet restore NetSdrClient.sln
+
+      # ---------------------------
+      # 8. Build Solution
       # ---------------------------
       - name: Build Solution
         shell: pwsh
         run: dotnet build NetSdrClient.sln -c Release --no-incremental
 
       # ---------------------------
-      # 8. Run Tests + Coverage
+      # 9. Run Tests + Coverage
       # ---------------------------
       - name: Run Tests with Coverage
         shell: pwsh
@@ -108,7 +104,7 @@ jobs:
             /p:CoverletOutputFormat=opencover
 
       # ---------------------------
-      # 9. Sonar End
+      # 10. Sonar End
       # ---------------------------
       - name: Sonar End
         shell: pwsh
