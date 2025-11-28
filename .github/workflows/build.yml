@@ -31,6 +31,18 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Clean workspace
+        run: |
+          git clean -xfd
+          dotnet clean NetSdrClient.sln
+        shell: pwsh
+
+      - name: Reinstall Sonar Scanner
+        run: |
+          dotnet tool uninstall --global dotnet-sonarscanner
+          dotnet tool install --global dotnet-sonarscanner
+        shell: pwsh
+
       - name: Remove sonar-project.properties (conflicts)
         shell: pwsh
         run: |
