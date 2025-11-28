@@ -2,7 +2,8 @@
 using NUnit.Framework;
 using System.Linq;
 using System.Reflection;
-using System; // Required for Array.Empty<string>() and better type resolution
+using System;
+
 
 namespace NetSdrClientAppTests
 {
