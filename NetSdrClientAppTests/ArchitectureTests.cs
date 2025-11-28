@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using System.Linq;
 using System.Reflection;
+using System; // Required for Array.Empty<string>() and better type resolution
 
 namespace NetSdrClientAppTests
 {
@@ -13,6 +14,8 @@ namespace NetSdrClientAppTests
         [SetUp]
         public void Setup()
         {
+            // Note: typeof(NetSdrClientApp.NetSdrClient) must refer to a type
+            // within the assembly you intend to test.
             _assembly = typeof(NetSdrClientApp.NetSdrClient).Assembly;
         }
 
@@ -27,6 +30,8 @@ namespace NetSdrClientAppTests
                 .HaveDependencyOnAny(forbiddenReferences)
                 .GetResult();
 
+            // The 'using System;' statement resolves the type mismatch error
+            // reported on the '??' operator by making Array.Empty accessible.
             var failing = result.FailingTypes?
                 .Select(t => t.FullName)
                 .ToArray() ?? Array.Empty<string>();
@@ -38,6 +43,8 @@ namespace NetSdrClientAppTests
         [Test]
         public void NetworkingClasses_Should_Implement_Interfaces()
         {
+            // This custom rule checks that any class in the Networking namespace 
+            // ending with "Wrapper" implements at least one interface.
             var result = Types
                 .InNamespace(NetworkingNamespace)
                 .That().AreClasses()
