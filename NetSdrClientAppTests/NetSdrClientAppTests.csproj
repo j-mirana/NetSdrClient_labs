@@ -27,9 +27,5 @@
 		<Using Include="NUnit.Framework" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<Compile Include="Rules\ImplementsAnyInterfaceRule.cs" />
-	</ItemGroup>
-
 
 </Project>
