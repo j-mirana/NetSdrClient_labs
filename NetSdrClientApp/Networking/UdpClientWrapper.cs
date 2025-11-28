@@ -51,6 +51,7 @@ namespace NetSdrClientApp.Networking
             catch (Exception ex)
             {
                 _logger.LogError($"Error receiving message: {ex.Message}"); // Виправлено Console.WriteLine
+                throw;
             }
         }
 

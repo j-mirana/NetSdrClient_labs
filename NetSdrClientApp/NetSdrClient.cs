@@ -12,7 +12,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NetSdrClientApp
 {
-    public class NetSdrClient
+    public sealed class NetSdrClient
     {
         private ITcpClient _tcpClient;
         private IUdpClient _udpClient;
