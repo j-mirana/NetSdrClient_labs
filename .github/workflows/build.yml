@@ -47,6 +47,14 @@ jobs:
           git clean -xfd
           dotnet clean NetSdrClient.sln
 
+            # ---------------------------
+      # 3.5. Validate Build
+      # ---------------------------
+      - name: Validate Build
+        shell: pwsh
+        run: |
+          dotnet build NetSdrClient.sln -c Release --no-restore
+
       # ---------------------------
       # 4. Remove sonar-project.properties
       # (SonarCloud requires tool mode)
