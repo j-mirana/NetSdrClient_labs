@@ -17,63 +17,93 @@ jobs:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     permissions:
-      pull-requests: write
       contents: read
+      pull-requests: write
 
     steps:
+      # ---------------------------
+      # 1. Checkout the repository
+      # ---------------------------
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # ---------------------------
+      # 2. Install .NET 8
+      # ---------------------------
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
-      - name: Clean workspace
+      # ---------------------------
+      # 3. FULL CLEAN WORKSPACE
+      # (fixes phantom Sonar errors)
+      # ---------------------------
+      - name: Full Clean Workspace
+        shell: pwsh
         run: |
           git clean -xfd
           dotnet clean NetSdrClient.sln
-        shell: pwsh
 
+      # ---------------------------
+      # 4. Remove sonar-project.properties
+      # (SonarCloud requires tool mode)
+      # ---------------------------
+      - name: Remove sonar-project.properties
+        shell: pwsh
+        run: |
+          Remove-Item -Path "sonar-project.properties" -ErrorAction SilentlyContinue
+
+      # ---------------------------
+      # 5. Reinstall Sonar Scanner fully
+      # (critical: fixes stale global tool cache)
+      # ---------------------------
       - name: Reinstall Sonar Scanner
+        shell: pwsh
         run: |
           dotnet tool uninstall --global dotnet-sonarscanner
           dotnet tool install --global dotnet-sonarscanner
-        shell: pwsh
 
-      - name: Remove sonar-project.properties (conflicts)
-        shell: pwsh
-        run: |
-          Remove-Item -Path "sonar-project.properties" -Force -ErrorAction SilentlyContinue
-
-      - name: Install SonarScanner for .NET
-        shell: pwsh
-        run: dotnet tool install --global dotnet-sonarscanner
-
-      - name: SonarCloud Begin, Build, Test, End
+      # ---------------------------
+      # 6. Sonar Begin
+      # ---------------------------
+      - name: Sonar Begin
         shell: pwsh
         run: |
           $scanner = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
-
-          # === BEGIN ===
           & $scanner begin `
             /k:"j-mirana_NetSdrClient_labs" `
             /o:"j-mirana" `
             /d:sonar.host.url="https://sonarcloud.io" `
-            /d:sonar.login="$env:SONAR_TOKEN" `
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml"
+            /d:sonar.login="${env:SONAR_TOKEN}" `
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" `
+            /d:sonar.exclusions="**/bin/**,**/obj/**"
 
-          # === BUILD ===
-          dotnet build NetSdrClient.sln -c Release
+      # ---------------------------
+      # 7. Build Solution
+      # ---------------------------
+      - name: Build Solution
+        shell: pwsh
+        run: dotnet build NetSdrClient.sln -c Release --no-incremental
 
-          # === TEST WITH COVERAGE ===
+      # ---------------------------
+      # 8. Run Tests + Coverage
+      # ---------------------------
+      - name: Run Tests with Coverage
+        shell: pwsh
+        run: |
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release `
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
 
-          # === END ===
-          & $scanner end `
-            /d:sonar.login="$env:SONAR_TOKEN"
+      # ---------------------------
+      # 9. Sonar End
+      # ---------------------------
+      - name: Sonar End
+        shell: pwsh
+        run: |
+          $scanner = "$env:USERPROFILE\.dotnet\tools\dotnet-sonarscanner"
+          & $scanner end /d:sonar.login="${env:SONAR_TOKEN}"
