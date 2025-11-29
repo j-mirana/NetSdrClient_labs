@@ -12,19 +12,23 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NetSdrClientApp
 {
-    public class NetSdrClient
+    // Fix: Make class sealed as required by ArchitectureTests
+    public sealed class NetSdrClient
     {
         private ITcpClient _tcpClient;
         private IUdpClient _udpClient;
+        private readonly ILogger _logger; // Fix: Added ILogger dependency
 
         public bool IQStarted { get; set; }
 
         private TaskCompletionSource<byte[]>? responseTaskSource = null; // Фікс CS8618
 
-        public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient)
+        // Fix: Added ILogger to constructor
+        public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient, ILogger logger)
         {
             _tcpClient = tcpClient;
             _udpClient = udpClient;
+            _logger = logger; // Store the logger
 
             _tcpClient.MessageReceived += _tcpClient_MessageReceived;
             _udpClient.MessageReceived += _udpClient_MessageReceived;
@@ -65,11 +69,12 @@ namespace NetSdrClientApp
         {
             if (!_tcpClient.Connected)
             {
-                Console.WriteLine("No active connection.");
+                _logger.Log("No active connection. Cannot start IQ."); // Fix: Use ILogger
                 return;
             }
 
-; var iqDataMode = (byte)0x80;
+            // Fix: Removed stray semicolon
+            var iqDataMode = (byte)0x80;
             var start = (byte)0x02;
             var fifo16bitCaptureMode = (byte)0x01;
             var n = (byte)1;
@@ -89,7 +94,7 @@ namespace NetSdrClientApp
         {
             if (!_tcpClient.Connected)
             {
-                Console.WriteLine("No active connection.");
+                _logger.Log("No active connection. Cannot stop IQ."); // Fix: Use ILogger
                 return;
             }
 
@@ -122,7 +127,7 @@ namespace NetSdrClientApp
             NetSdrMessageHelper.TranslateMessage(e, out MsgTypes type, out ControlItemCodes code, out ushort sequenceNum, out byte[] body);
             var samples = NetSdrMessageHelper.GetSamples(16, body);
 
-            Console.WriteLine($"Samples recieved: " + body.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+            _logger.Log($"Samples recieved: " + body.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}")); // Fix: Use ILogger
 
             using (FileStream fs = new FileStream("samples.bin", FileMode.Append, FileAccess.Write, FileShare.Read))
             using (BinaryWriter sw = new BinaryWriter(fs))
@@ -140,7 +145,7 @@ namespace NetSdrClientApp
         {
             if (!_tcpClient.Connected)
             {
-                // Console.WriteLine("No active connection."); // Логування має бути через ILogger
+                _logger.Log("No active connection. TCP request aborted."); // Fix: Use ILogger
                 return null; // CS8603 та CS8625 - повертаємо null
             }
 
@@ -162,7 +167,7 @@ namespace NetSdrClientApp
                 responseTaskSource.SetResult(e);
                 responseTaskSource = null;
             }
-            Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+            _logger.Log("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}")); // Fix: Use ILogger
         }
     }
 }
