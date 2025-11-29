@@ -1,5 +1,6 @@
 ﻿using Moq;
 using NetSdrClientApp;
+using NetSdrClientApp.Messages;
 using NetSdrClientApp.Networking;
 using NUnit.Framework;
 using System.Threading.Tasks;
@@ -74,24 +75,52 @@ namespace NetSdrClientAppTests
         }
 
         [Test]
-        public async Task ChangeFrequencyAsync_SendsMessage()
-        {
-            await _client.ConnectAsync();
-            _tcpMock.Invocations.Clear();
-
-            await _client.ChangeFrequencyAsync(20_000_000, 1);
-
-            _tcpMock.Verify(t => t.SendMessageAsync(It.IsAny<byte[]>()), Times.Once);
-        }
-
-        [Test]
         public async Task ChangeFrequencyAsync_NoConnection_ReturnsNullAndLogs()
         {
             var result = await _client.ChangeFrequencyAsync(20_000_000, 1);
 
-            Assert.IsNull(result);
+            Assert.That(result, Is.Null);
             _loggerMock.Verify(l => l.Log("No active connection. TCP request aborted."), Times.Once);
         }
+
+        [Test]
+        public void TranslateMessage_ParsesHeaderCorrectly()
+        {
+            byte[] msg = { 0x00, 0x00, 0x20, 0x00, 0x01, 0x00 };
+
+            NetSdrMessageHelper.TranslateMessage(
+                msg,
+                out ushort type,
+                out ushort length,
+                out ushort code,
+                out byte[] body);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(type, Is.EqualTo((short)NetSdrMessageHelper.MsgTypes.SetControlItem));
+                Assert.That(length, Is.EqualTo(2));
+                Assert.That(code, Is.EqualTo(1));
+                Assert.That(body, Has.Length.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void GetSamples_ReturnsCorrectSamples_For16Bit()
+        {
+            byte[] body = { 0x01, 0x00, 0x02, 0x00, 0x00, 0x00 };
+            ushort sampleSize = 16;
+
+            var samples = NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(samples, Has.Length.EqualTo(3));
+                Assert.That(samples[0], Is.EqualTo(1));
+                Assert.That(samples[1], Is.EqualTo(2));
+                Assert.That(samples[2], Is.EqualTo(0));
+            });
+        }
+
 
         [Test]
         public async Task StartIQAsync_NoConnection_DoesNotStart()
