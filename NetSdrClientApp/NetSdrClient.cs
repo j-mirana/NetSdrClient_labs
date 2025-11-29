@@ -2,29 +2,28 @@
 using NetSdrClientApp.Networking;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using static NetSdrClientApp.Messages.NetSdrMessageHelper;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NetSdrClientApp
 {
-    public class NetSdrClient
+    public sealed class NetSdrClient
     {
-        private ITcpClient _tcpClient;
-        private IUdpClient _udpClient;
+        private readonly ITcpClient _tcpClient;
+        private readonly IUdpClient _udpClient;
+        private readonly ILogger _logger;
 
-        public bool IQStarted { get; set; }
+        public bool IQStarted { get; private set; }
 
-        private TaskCompletionSource<byte[]>? responseTaskSource = null; // Фікс CS8618
+        private TaskCompletionSource<byte[]>? responseTaskSource = null;
 
-        public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient)
+        public NetSdrClient(ITcpClient tcpClient, IUdpClient udpClient, ILogger logger)
         {
             _tcpClient = tcpClient;
             _udpClient = udpClient;
+            _logger = logger;
 
             _tcpClient.MessageReceived += _tcpClient_MessageReceived;
             _udpClient.MessageReceived += _udpClient_MessageReceived;
@@ -37,46 +36,46 @@ namespace NetSdrClientApp
                 _tcpClient.Connect();
 
                 var sampleRate = BitConverter.GetBytes((long)100000).Take(5).ToArray();
-                var automaticFilterMode = BitConverter.GetBytes((ushort)0).ToArray();
+                var autoFilter = BitConverter.GetBytes((ushort)0).ToArray();
                 var adMode = new byte[] { 0x00, 0x03 };
 
-                //Host pre setup
                 var msgs = new List<byte[]>
                 {
                     NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.IQOutputDataSampleRate, sampleRate),
-                    NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.RFFilter, automaticFilterMode),
-                    NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ADModes, adMode),
+                    NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.RFFilter, autoFilter),
+                    NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ADModes, adMode)
                 };
 
                 foreach (var msg in msgs)
-                {
                     await SendTcpRequest(msg);
-                }
             }
         }
 
-        // Виправлення: Перейменування методу з Disconect на Disconnect (Typos)
         public void Disconnect()
         {
             _tcpClient.Disconnect();
+            if (!_tcpClient.Connected)
+                _logger.Log("No active connection to disconnect.");
+            else
+                _logger.Log("Disconnected.");
         }
 
         public async Task StartIQAsync()
         {
             if (!_tcpClient.Connected)
             {
-                Console.WriteLine("No active connection.");
+                _logger.Log("No active connection. Cannot start IQ.");
                 return;
             }
 
-; var iqDataMode = (byte)0x80;
-            var start = (byte)0x02;
-            var fifo16bitCaptureMode = (byte)0x01;
-            var n = (byte)1;
+            byte iqDataMode = 0x80;
+            byte start = 0x02;
+            byte fifo16 = 0x01;
+            byte n = 1;
 
-            var args = new[] { iqDataMode, start, fifo16bitCaptureMode, n };
-
-            var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
+            var args = new[] { iqDataMode, start, fifo16, n };
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
 
             await SendTcpRequest(msg);
 
@@ -89,80 +88,87 @@ namespace NetSdrClientApp
         {
             if (!_tcpClient.Connected)
             {
-                Console.WriteLine("No active connection.");
+                _logger.Log("No active connection. Cannot stop IQ.");
                 return;
             }
 
-            var stop = (byte)0x01;
-
-            var args = new byte[] { 0, stop, 0, 0 };
-
-            var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
+            var args = new byte[] { 0, 0x01, 0, 0 };
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
 
             await SendTcpRequest(msg);
 
             IQStarted = false;
-
             _udpClient.StopListening();
         }
 
-        public async Task ChangeFrequencyAsync(long hz, int channel)
-        {
-            var channelArg = (byte)channel;
-            var frequencyArg = BitConverter.GetBytes(hz).Take(5);
-            var args = new[] { channelArg }.Concat(frequencyArg).ToArray();
-
-            var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverFrequency, args);
-
-            await SendTcpRequest(msg);
-        }
-
-        private void _udpClient_MessageReceived(object? sender, byte[] e)
-        {
-            NetSdrMessageHelper.TranslateMessage(e, out MsgTypes type, out ControlItemCodes code, out ushort sequenceNum, out byte[] body);
-            var samples = NetSdrMessageHelper.GetSamples(16, body);
-
-            Console.WriteLine($"Samples recieved: " + body.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
-
-            using (FileStream fs = new FileStream("samples.bin", FileMode.Append, FileAccess.Write, FileShare.Read))
-            using (BinaryWriter sw = new BinaryWriter(fs))
-            {
-                foreach (var sample in samples)
-                {
-                    sw.Write((short)sample); //write 16 bit per sample as configured 
-                }
-            }
-        }
-
-        // private TaskCompletionSource<byte[]>? responseTaskSource; // Винесено на початок класу
-
-        private async Task<byte[]?> SendTcpRequest(byte[] msg) // Змінено тип повернення на Task<byte[]?>
+        public async Task<byte[]?> ChangeFrequencyAsync(long hz, int channel)
         {
             if (!_tcpClient.Connected)
             {
-                // Console.WriteLine("No active connection."); // Логування має бути через ILogger
-                return null; // CS8603 та CS8625 - повертаємо null
+                _logger.Log("No active connection. TCP request aborted.");
+                return null;
+            }
+
+            var channelArg = (byte)channel;
+            var freq = BitConverter.GetBytes(hz).Take(5).ToArray();
+            var args = (new[] { channelArg }).Concat(freq).ToArray();
+
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                MsgTypes.SetControlItem, ControlItemCodes.ReceiverFrequency, args);
+
+            return await SendTcpRequest(msg);
+        }
+
+        private void _udpClient_MessageReceived(object? sender, byte[] data)
+        {
+            // small and fast
+            try
+            {
+                NetSdrMessageHelper.TranslateMessage(data, out _, out _, out _, out var body);
+                var samples = NetSdrMessageHelper.GetSamples(16, body);
+
+                _logger.Log("Samples recieved: " +
+                    string.Join(" ", body.Select(b => b.ToString("X2"))));
+
+                using var fs = new FileStream("samples.bin", FileMode.Append, FileAccess.Write, FileShare.Read);
+                using var bw = new BinaryWriter(fs);
+
+                foreach (var s in samples)
+                    bw.Write((short)s);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"UDP Parse Error: {ex.Message}");
+            }
+        }
+
+        private async Task<byte[]?> SendTcpRequest(byte[] msg)
+        {
+            if (!_tcpClient.Connected)
+            {
+                _logger.Log("No active connection. TCP request aborted.");
+                return null;
             }
 
             responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var responseTask = responseTaskSource.Task;
+            var task = responseTaskSource.Task;
 
             await _tcpClient.SendMessageAsync(msg);
 
-            var resp = await responseTask;
-
-            return resp;
+            return await task;
         }
 
-        private void _tcpClient_MessageReceived(object? sender, byte[] e)
+        private void _tcpClient_MessageReceived(object? sender, byte[] data)
         {
-            //TODO: add Unsolicited messages handling here
             if (responseTaskSource != null)
             {
-                responseTaskSource.SetResult(e);
+                responseTaskSource.TrySetResult(data);
                 responseTaskSource = null;
             }
-            Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+
+            _logger.Log("Response recieved: " +
+                string.Join(" ", data.Select(b => b.ToString("X2"))));
         }
     }
 }

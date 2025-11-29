@@ -64,6 +64,34 @@ namespace NetSdrClientAppTests
             Assert.That(parametersBytes.Count(), Is.EqualTo(parametersLength));
         }
 
-        //TODO: add more NetSdrMessageHelper tests
+        // COVERAGE: Test for ArgumentOutOfRangeException in GetSamples
+        [Test]
+        public void GetSamples_ThrowsException_WhenSampleSizeIsTooLarge()
+        {
+            // Arrange: 4 bytes (32 bit) is max size. 40 bit is 5 bytes, which should fail.
+            ushort sampleSize = 40;
+            byte[] body = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+            // Act & Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray());
+        }
+
+        // COVERAGE: Test for successful 16-bit sample retrieval
+        [Test]
+        public void GetSamples_ReturnsCorrectSamples_For16Bit()
+        {
+            // Arrange: 16 bit samples (2 bytes each). Total 3 samples.
+            byte[] body = { 0x01, 0x00, 0x02, 0x00, 0x00, 0x00 };
+            ushort sampleSize = 16;
+
+            // Act
+            var samples = NetSdrMessageHelper.GetSamples(sampleSize, body).ToArray();
+
+            // Assert
+            Assert.That(samples.Length, Is.EqualTo(3));
+            Assert.That(samples[0], Is.EqualTo(1));
+            Assert.That(samples[1], Is.EqualTo(2));
+            Assert.That(samples[2], Is.EqualTo(0));
+        }
     }
 }
