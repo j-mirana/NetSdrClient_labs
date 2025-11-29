@@ -5,7 +5,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NetSdrClientApp.Networking; // Додано для ILogger та IUdpClient
+using NetSdrClientApp.Interfaces;
+
 
 // Клас має знаходитися в просторі імен проекту NetSdrClientApp
 namespace NetSdrClientApp.Networking
