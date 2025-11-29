@@ -4,7 +4,7 @@ using System;
 
 // 1. Визначення констант для Магічних чисел (Magic Numbers)
 const string DefaultTcpAddress = "127.0.0.1";
-const int DefaultTcpPort = 5000;
+const int DefaultTcpPort = 50000; // FIX: Corrected port as per spec
 const int DefaultUdpPort = 60000;
 const long DefaultFrequency = 20000000;
 const int DefaultGain = 1;
@@ -24,7 +24,8 @@ Q - quit");
 var tcpClient = new TcpClientWrapper(DefaultTcpAddress, DefaultTcpPort, logger);
 var udpClient = new UdpClientWrapper(DefaultUdpPort, logger);
 
-var netSdr = new NetSdrClient(tcpClient, udpClient);
+// FIX: Pass logger to NetSdrClient
+var netSdr = new NetSdrClient(tcpClient, udpClient, logger);
 
 while (true)
 {
