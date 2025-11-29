@@ -1,12 +1,15 @@
-﻿namespace NetSdrClientApp.Interfaces
+﻿using System;
+using System.Threading.Tasks;
+
+namespace NetSdrClientApp.Networking
 {
     public interface IUdpClient
     {
-        Task StartListeningAsync();
-        void StopListening();
-        event EventHandler<byte[]> DatagramReceived;
-    }
-}
+        event EventHandler<byte[]>? MessageReceived;
 
+        Task StartListeningAsync();
+
+        void StopListening();
+        void Exit();
     }
 }
