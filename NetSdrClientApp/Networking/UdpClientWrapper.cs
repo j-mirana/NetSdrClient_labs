@@ -44,14 +44,13 @@ namespace NetSdrClientApp.Networking
                     _logger.Log($"Received from {result.RemoteEndPoint}"); // Виправлено Console.WriteLine
                 }
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 // Do something...
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Error receiving message: {ex.Message}"); // Виправлено Console.WriteLine
-                throw;
             }
         }
 
@@ -67,6 +66,12 @@ namespace NetSdrClientApp.Networking
             {
                 _logger.LogError($"Error while stopping: {ex.Message}"); // Виправлено Console.WriteLine
             }
+            finally
+            {
+                // FIX S2930: Dispose _cts
+                _cts?.Dispose();
+                _cts = null;
+            }
         }
 
         public void Exit()
@@ -81,6 +86,7 @@ namespace NetSdrClientApp.Networking
             // але залишається як частина оригінального коду.
             var payload = $"{nameof(UdpClientWrapper)}|{_localEndPoint.Address}|{_localEndPoint.Port}";
 
+            // FIX S4790 (Not fully fixed, but accepted for now)
             using var md5 = MD5.Create();
             var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(payload));
 

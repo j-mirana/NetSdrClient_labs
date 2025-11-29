@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-// FIX: Removed duplicated 'using System;'
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -13,8 +12,9 @@ namespace NetSdrClientApp.Networking
     public class TcpClientWrapper : ITcpClient
     {
         private readonly ILogger _logger; // Додано ILogger
-        private string _host;
-        private int _port;
+        // FIX S2933: Make fields readonly
+        private readonly string _host;
+        private readonly int _port;
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
         private CancellationTokenSource? _cts = null; // Фікс CS8618
@@ -62,6 +62,9 @@ namespace NetSdrClientApp.Networking
                 _cts?.Cancel();
                 _stream?.Close();
                 _tcpClient?.Close();
+
+                // FIX S2930: Dispose _cts
+                _cts?.Dispose();
 
                 _cts = null;
                 _tcpClient = null;

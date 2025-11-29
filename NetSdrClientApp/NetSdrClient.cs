@@ -15,9 +15,10 @@ namespace NetSdrClientApp
     // Fix: Make class sealed as required by ArchitectureTests
     public sealed class NetSdrClient
     {
-        private ITcpClient _tcpClient;
-        private IUdpClient _udpClient;
-        private readonly ILogger _logger; // Fix: Added ILogger dependency
+        // FIX S2933: Make fields readonly
+        private readonly ITcpClient _tcpClient;
+        private readonly IUdpClient _udpClient;
+        private readonly ILogger _logger;
 
         public bool IQStarted { get; set; }
 
@@ -111,7 +112,8 @@ namespace NetSdrClientApp
             _udpClient.StopListening();
         }
 
-        public async Task ChangeFrequencyAsync(long hz, int channel)
+        // FIX CS0815: Changed return type from Task to Task<byte[]?>
+        public async Task<byte[]?> ChangeFrequencyAsync(long hz, int channel)
         {
             var channelArg = (byte)channel;
             var frequencyArg = BitConverter.GetBytes(hz).Take(5);
@@ -119,12 +121,14 @@ namespace NetSdrClientApp
 
             var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverFrequency, args);
 
-            await SendTcpRequest(msg);
+            // FIX CS0815: Return the result of the TCP request
+            return await SendTcpRequest(msg);
         }
 
         private void _udpClient_MessageReceived(object? sender, byte[] e)
         {
-            NetSdrMessageHelper.TranslateMessage(e, out MsgTypes type, out ControlItemCodes code, out ushort sequenceNum, out byte[] body);
+            // FIX S1481: Use discards for unused variables
+            NetSdrMessageHelper.TranslateMessage(e, out _, out _, out _, out byte[] body);
             var samples = NetSdrMessageHelper.GetSamples(16, body);
 
             _logger.Log($"Samples recieved: " + body.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}")); // Fix: Use ILogger
@@ -161,7 +165,7 @@ namespace NetSdrClientApp
 
         private void _tcpClient_MessageReceived(object? sender, byte[] e)
         {
-            //TODO: add Unsolicited messages handling here
+            //TODO: add Unsolicited messages handling here (S1135 - not fixed here)
             if (responseTaskSource != null)
             {
                 responseTaskSource.SetResult(e);
