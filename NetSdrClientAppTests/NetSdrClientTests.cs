@@ -38,6 +38,16 @@ public class NetSdrClientTests
         _client = new NetSdrClient(_tcpMock.Object, _updMock.Object, _loggerMock.Object);
     }
 
+    [TearDown]
+    public async Task TearDown()
+    {
+        // FIX: Гарантуємо, що UDP-клієнт зупиниться, якщо був запущений, щоб уникнути блокування тестів.
+        if (_client.IQStarted)
+        {
+            await _client.StopIQAsync();
+        }
+    }
+
     [Test]
     public async Task ConnectAsyncTest()
     {
@@ -181,11 +191,11 @@ public class NetSdrClientTests
         _loggerMock.Verify(l => l.Log(It.Is<string>(s => s.StartsWith("Response recieved:"))), Times.Once);
     }
 
-    // COVERAGE: New test for logging UDP messages (covers logging in _udpClient_MessageReceived)
+    // COVERAGE: New test for logging UDP messages
     [Test]
     public void UdpMessageReceived_LogsSamples()
     {
-        // Arrange: Header (0x04, 0x84, 0x00, 0x01) + Sample Data (0x11, 0x22, 0x33, 0x44)
+        // Arrange: Header + Sample Data (4 bytes header + 4 bytes body)
         byte[] rawMessage = new byte[] { 0x04, 0x84, 0x00, 0x01, 0x11, 0x22, 0x33, 0x44 };
 
         // Act: Simulate receiving a UDP message
