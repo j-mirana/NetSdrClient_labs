@@ -5,8 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NetSdrClientApp.Interfaces;
-
+// using NetSdrClientApp.Networking; // FIX: Removed incorrect or redundant using statement that caused CS0234 error
 
 // Клас має знаходитися в просторі імен проекту NetSdrClientApp
 namespace NetSdrClientApp.Networking

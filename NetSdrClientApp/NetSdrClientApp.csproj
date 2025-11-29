@@ -7,9 +7,8 @@
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.0" />
-		<PackageReference Include="SharpZipLib" Version="1.3.2" />
-		<!-- ВИДАЛИТИ ВСІ БЛОКИ <ItemGroup> З <Compile Include="...">, ЯКЩО ВОНИ Є -->
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="SharpZipLib" Version="1.3.3" />
 	</ItemGroup>
 
 </Project>
