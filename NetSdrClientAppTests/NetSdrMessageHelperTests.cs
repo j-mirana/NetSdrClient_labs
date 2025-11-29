@@ -1,13 +1,11 @@
 using NetSdrClientApp.Messages;
+using NUnit.Framework;
+
 
 namespace NetSdrClientAppTests
 {
     public class NetSdrMessageHelperTests
     {
-        [SetUp]
-        public void Setup()
-        {
-        }
 
         [Test]
         public void GetControlItemMessageTest()
